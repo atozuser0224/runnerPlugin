@@ -89,19 +89,18 @@ class TestPlugin : JavaPlugin(), Listener {
     if (e.isSneaking && GameManager.isRunning && !p.isPredator()){
 
       GameManager.blockMap[p] = p.location.clone().add(0.0,-1.0,0.0).block.type
-      p.inventory.helmet = ItemStack(p.location.clone().add(0.0,-1.0,0.0).block.type,1)
     }
   }
   @EventHandler
   fun onDeath(e : PlayerDeathEvent){
     if (e.player.isPredator()){
-      GameManager.stop()
+      GameManager.stop(this)
       server.showTitle(Title.title(Component.text("술래가 패배하였습니다."), Component.text("")))
     }else if(GameManager.players.contains(e.player)){
       e.player.gameMode = GameMode.SPECTATOR
       GameManager.players.remove(e.player)
       if (GameManager.players.isEmpty()){
-        GameManager.stop()
+        GameManager.stop(this)
         server.showTitle(Title.title(Component.text("술래가 승리하였습니다."), Component.text("")))
 
       }
@@ -112,6 +111,7 @@ class TestPlugin : JavaPlugin(), Listener {
     val p = e.player
     if (p.isPredator()){
       if (e.item?.type == Material.BLAZE_ROD && GameManager.item >= 1){
+        p.inventory.remove(ItemStack(Material.BLAZE_ROD,1))
         GameManager.item--
         GameManager.players.forEach {
           val firework: Firework = it.world.spawn(it.location, Firework::class.java)
@@ -135,18 +135,22 @@ class TestPlugin : JavaPlugin(), Listener {
 
           // 설정한 메타 데이터를 폭죽에 적용
           firework.fireworkMeta = fireworkMeta
+          launch {
+            delay((20 * 10) .ticks)
+            p.inventory.addItem(ItemStack(Material.BLAZE_ROD,1))
+          }
         }
       }
     }
   }
   override fun onDisable() {
-    GameManager.stop()
+    GameManager.stop(this)
   }
 }
 
 object GameManager{
   var isRunning = false
-  lateinit var spawn : Location
+  var spawn : Location? = null
   lateinit var predator : Player
   var item = 0
   val maxTicks = 60 * 20 * 5 // 최대 틱 (60초)
@@ -163,11 +167,11 @@ object GameManager{
   val blockMap = mutableMapOf<Player,Material>()
   var tick = 0
   fun start(plugin: Plugin,player: Player){
-    if (!::spawn.isLateinit){
-      player.sendMessage("[블럭 숨바꼭질] spawn위치가 설정되지 않았습니다. ")
-      return
-    }
     plugin.launch {
+      if (spawn == null){
+        player.sendMessage("[블럭 숨바꼭질] spawn위치가 설정되지 않았습니다. ")
+        return@launch
+      }
       delay(20.ticks)
       Bukkit.getOnlinePlayers().forEach {
         it.sendTitle("3","")
@@ -188,8 +192,9 @@ object GameManager{
       Bukkit.getOnlinePlayers().forEach {
         if (it != predator && it.gameMode != GameMode.SPECTATOR){
           players.add(it)
+          blockMap[it] = Material.GRASS_BLOCK
         }
-        it.teleportAsync(spawn)
+        it.teleportAsync(spawn?:return@launch)
       }
       predator.let {
         it.inventory.addItem(ItemStack(Material.DIAMOND_SWORD))
@@ -231,14 +236,15 @@ object GameManager{
       }
     }
   }
-  fun stop(){
+  fun stop(plugin: Plugin){
     Bukkit.getOnlinePlayers().forEach {
       if (it.gameMode != GameMode.SPECTATOR){
         it.isInvisible = false
-        it.teleportAsync(spawn)
+        it.teleportAsync(spawn?:return)
         it.gameMode = GameMode.ADVENTURE
       }
     }
+    plugin.server.hideBossBar(bossBar)
   }
 }
 

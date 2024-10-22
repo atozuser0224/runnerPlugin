@@ -84,9 +84,9 @@ tasks {
 bukkitPluginYaml {
   main = "io.papermc.paperweight.testplugin.TestPlugin"
   load = BukkitPluginYaml.PluginLoadOrder.STARTUP
-  authors.add("Author")
+  authors.add("ARk")
   apiVersion = "1.20"
-  name = "landEat"
+  name = "BlockHideAndSeek"
   libraries = listOf(
     "com.github.shynixn.mccoroutine:mccoroutine-bukkit-api:2.20.0",
     "com.github.shynixn.mccoroutine:mccoroutine-bukkit-core:2.20.0",
